@@ -132,13 +132,6 @@ def monitor_keyboard():
     
     while True:
 
-        # 按下 cmd 不释放且鼠标位置不变超过 1 s，广播 copyachat 隐藏消息
-        if current[-1]["key"] == Key.cmd and time.time() - current[-1]["time"] >= 0.5 and not hover_hide_status:
-            hover_hide_status = True
-            message = json.dumps({'action': "hover-hide-start"})
-            asyncio.run(broadcast(message))
-            print("隐藏 copyachat 程序")
-        
         # 每 500ms 检测一次剪贴板是否变化
         # 检测到的复制内容不是剪贴板历史最后一个，也不是增量复制覆盖剪贴板的内容
         # 那么是鼠标操作的复制添加到剪贴板的
@@ -153,6 +146,12 @@ def monitor_keyboard():
                     clipboard_content.append(tmp_value)
                     clipboard_content_str = "\n".join(clipboard_content)
                     pyperclip.copy(clipboard_content_str)
+
+                    # 添加防御性按键
+                    current.append({
+                        "key": Key.space,
+                        "time": time.time()
+                    })
                     print("鼠标 + cmd 增量复制\n", clipboard_content_str)
                     # message = json.dumps({'action': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
                     # asyncio.run(broadcast(message))
@@ -177,6 +176,13 @@ def monitor_keyboard():
                     print("鼠标复制2：\n", clipboard_content_str)
                     # message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
                     # asyncio.run(broadcast(message))
+        else:
+            # 按下 cmd 不释放且鼠标位置不变超过 1 s，广播 copyachat 隐藏消息
+            if current[-1]["key"] == Key.cmd and time.time() - current[-1]["time"] >= 0.5 and not hover_hide_status:
+                hover_hide_status = True
+                message = json.dumps({'action': "hover-hide-start"})
+                asyncio.run(broadcast(message))
+                print("隐藏 copyachat 程序")
             
         time.sleep(0.5)
 
