@@ -60,11 +60,14 @@ def monitor_keyboard():
     clipboard_content = [""]
     clipboard_content_str = ""
 
+    # 按下 cmd 键超过 0.5 s 则隐藏 copyachat
+    hover_hide_status = False
+
     # 启动时清空剪贴板
     pyperclip.copy("")
 
     def on_press(key):
-        nonlocal current, clipboard_content, clipboard_content_str
+        nonlocal current, clipboard_content, clipboard_content_str, hover_hide_status
 
         # current 最多记录最近按下的三个键及其时间
         current.append({
@@ -74,7 +77,7 @@ def monitor_keyboard():
         current = current[-3:]
 
     def on_release(key):
-        nonlocal current, clipboard_content, clipboard_content_str
+        nonlocal current, clipboard_content, clipboard_content_str, hover_hide_status
 
         # cmd 键释放，代表 cmd 相关快捷键的结束
         if key == Key.cmd:
@@ -88,8 +91,8 @@ def monitor_keyboard():
                 clipboard_content_str = '\n'.join(clipboard_content)
                 pyperclip.copy(clipboard_content_str)
                 print("增量复制：\n", clipboard_content_str)
-                message = json.dumps({'type': 'keyboard', 'key': 'cmd+c+c', 'content': clipboard_content_str})
-                asyncio.run(broadcast(message))
+                # message = json.dumps({'action': 'cmd+c+c', 'event': {'content': clipboard_content_str}})
+                # asyncio.run(broadcast(message))
             
             # **普通复制**：仅按下 cmd c
             # 覆盖剪贴板历史为当前剪贴板内容，意为清空增量复制结果
@@ -112,18 +115,34 @@ def monitor_keyboard():
                 current.append({
                     "key": Key.space,
                     "time": time.time()
-                })      
+                })   
 
+        elif key == Key.alt:
+            # Send message to show and bring copyachat to front
+            # hover-hide-end
+            if current[-1]["key"] == Key.alt:
+                if time.time() - current[-1]["time"] >= 0.5 and hover_hide_status:
+                    hover_hide_status = False
+                    message = json.dumps({'action': "hover-hide-end"})
+                    asyncio.run(broadcast(message))
+                    print("显示并置顶 copyachat 程序")  
+            
+            # 按下 option 立即释放，添加一个防御性 字符，帮助鉴别各种操作
+            if current[-1]["key"] == Key.alt:
+                current.append({
+                    "key": Key.space,
+                    "time": time.time()
+                }) 
     keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     keyboard_listener.start()
 
     
     while True:
-        tmp_value = pyperclip.paste()
 
         # 每 500ms 检测一次剪贴板是否变化
         # 检测到的复制内容不是剪贴板历史最后一个，也不是增量复制覆盖剪贴板的内容
         # 那么是鼠标操作的复制添加到剪贴板的
+        tmp_value = pyperclip.paste()
         if tmp_value not in [clipboard_content[-1], clipboard_content_str]:
                 
                 # **鼠标 + cmd 复制**：剪贴板检测到新内容，且最新按键是 cmd
@@ -134,9 +153,15 @@ def monitor_keyboard():
                     clipboard_content.append(tmp_value)
                     clipboard_content_str = "\n".join(clipboard_content)
                     pyperclip.copy(clipboard_content_str)
-                    print("鼠标 + cmd 增量复制\n", clipboard_content_str)
-                    message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
-                    asyncio.run(broadcast(message))
+
+                    # # 添加防御性按键
+                    # current.append({
+                    #     "key": Key.space,
+                    #     "time": time.time()
+                    # })
+                    # print("鼠标 + cmd 增量复制\n", clipboard_content_str)
+                    # message = json.dumps({'action': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
+                    # asyncio.run(broadcast(message))
 
                 # **鼠标复制**：剪贴板检测到新内容，且不是 cmd c、cmd c c、cmd x、鼠标 + cmd 中的任意一种
                 # 覆盖剪贴板历史为当前剪贴板内容，意为清空增量复制结果
@@ -148,16 +173,23 @@ def monitor_keyboard():
                     clipboard_content_str = tmp_value
                     clipboard_content = [clipboard_content_str]
                     print("鼠标复制1：\n", clipboard_content_str)
-                    message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
-                    asyncio.run(broadcast(message))
+                    # message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
+                    # asyncio.run(broadcast(message))
 
                 # **鼠标复制**：剪贴板检测到新内容，初始情况下，直接用鼠标复制了一个内容
                 if len(current) == 1 and current[-1]["key"] != keyboard.Key.cmd:
                     clipboard_content_str = tmp_value
                     clipboard_content = [clipboard_content_str]
                     print("鼠标复制2：\n", clipboard_content_str)
-                    message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
-                    asyncio.run(broadcast(message))
+                    # message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
+                    # asyncio.run(broadcast(message))
+        else:
+            # 按下 option 不释放且鼠标位置不变超过 1 s，广播 copyachat 隐藏消息
+            if current[-1]["key"] == Key.alt and time.time() - current[-1]["time"] >= 0.5 and not hover_hide_status:
+                hover_hide_status = True
+                message = json.dumps({'action': "hover-hide-start"})
+                asyncio.run(broadcast(message))
+                print("隐藏 copyachat 程序")
             
         time.sleep(0.5)
 
