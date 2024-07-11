@@ -110,15 +110,6 @@ def monitor_keyboard():
                 clipboard_content = [clipboard_content_str]
                 print("剪切：\n", clipboard_content_str)
 
-            # Send message to show and bring copyachat to front
-            # hover-hide-end
-            if current[-1]["key"] == Key.cmd:
-                if time.time() - current[-1]["time"] >= 0.5 and hover_hide_status:
-                    hover_hide_status = False
-                    message = json.dumps({'action': "hover-hide-end"})
-                    asyncio.run(broadcast(message))
-                    print("显示并置顶 copyachat 程序")   
-
             # 按下 cmd 立即释放，添加一个防御性 字符，帮助鉴别各种操作
             if current[-1]["key"] == Key.cmd:
                 current.append({
@@ -126,6 +117,22 @@ def monitor_keyboard():
                     "time": time.time()
                 })   
 
+        elif key == Key.alt:
+            # Send message to show and bring copyachat to front
+            # hover-hide-end
+            if current[-1]["key"] == Key.alt:
+                if time.time() - current[-1]["time"] >= 0.5 and hover_hide_status:
+                    hover_hide_status = False
+                    message = json.dumps({'action': "hover-hide-end"})
+                    asyncio.run(broadcast(message))
+                    print("显示并置顶 copyachat 程序")  
+            
+            # 按下 option 立即释放，添加一个防御性 字符，帮助鉴别各种操作
+            if current[-1]["key"] == Key.alt:
+                current.append({
+                    "key": Key.space,
+                    "time": time.time()
+                }) 
     keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     keyboard_listener.start()
 
@@ -147,12 +154,12 @@ def monitor_keyboard():
                     clipboard_content_str = "\n".join(clipboard_content)
                     pyperclip.copy(clipboard_content_str)
 
-                    # 添加防御性按键
-                    current.append({
-                        "key": Key.space,
-                        "time": time.time()
-                    })
-                    print("鼠标 + cmd 增量复制\n", clipboard_content_str)
+                    # # 添加防御性按键
+                    # current.append({
+                    #     "key": Key.space,
+                    #     "time": time.time()
+                    # })
+                    # print("鼠标 + cmd 增量复制\n", clipboard_content_str)
                     # message = json.dumps({'action': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
                     # asyncio.run(broadcast(message))
 
@@ -177,8 +184,8 @@ def monitor_keyboard():
                     # message = json.dumps({'type': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
                     # asyncio.run(broadcast(message))
         else:
-            # 按下 cmd 不释放且鼠标位置不变超过 1 s，广播 copyachat 隐藏消息
-            if current[-1]["key"] == Key.cmd and time.time() - current[-1]["time"] >= 0.5 and not hover_hide_status:
+            # 按下 option 不释放且鼠标位置不变超过 1 s，广播 copyachat 隐藏消息
+            if current[-1]["key"] == Key.alt and time.time() - current[-1]["time"] >= 0.5 and not hover_hide_status:
                 hover_hide_status = True
                 message = json.dumps({'action': "hover-hide-start"})
                 asyncio.run(broadcast(message))
