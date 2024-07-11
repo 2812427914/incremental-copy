@@ -91,8 +91,8 @@ def monitor_keyboard():
                 clipboard_content_str = '\n'.join(clipboard_content)
                 pyperclip.copy(clipboard_content_str)
                 print("增量复制：\n", clipboard_content_str)
-                # message = json.dumps({'action': 'cmd+c+c', 'event': {'content': clipboard_content_str}})
-                # asyncio.run(broadcast(message))
+                message = json.dumps({'action': 'cmd+c+c', 'event': {'type': 'incremental copy', 'increment_content_list': clipboard_content}})
+                asyncio.run(broadcast(message))
             
             # **普通复制**：仅按下 cmd c
             # 覆盖剪贴板历史为当前剪贴板内容，意为清空增量复制结果
@@ -159,9 +159,9 @@ def monitor_keyboard():
                     #     "key": Key.space,
                     #     "time": time.time()
                     # })
-                    # print("鼠标 + cmd 增量复制\n", clipboard_content_str)
-                    # message = json.dumps({'action': 'clipboard', 'content': clipboard_content_str, 'key': 'option'})
-                    # asyncio.run(broadcast(message))
+                    print("鼠标 + cmd 增量复制\n", clipboard_content_str)
+                    message = json.dumps({'action': 'cmd_mouse_copy', 'event': {'type': 'incremental copy', 'increment_content_list': clipboard_content}})
+                    asyncio.run(broadcast(message))
 
                 # **鼠标复制**：剪贴板检测到新内容，且不是 cmd c、cmd c c、cmd x、鼠标 + cmd 中的任意一种
                 # 覆盖剪贴板历史为当前剪贴板内容，意为清空增量复制结果
